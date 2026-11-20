@@ -1308,12 +1308,20 @@
     if (!groups.length) return `<p class="muted pad">No roster listed.</p>`;
     return `<p class="muted small teams-hint">Tap a player for their last 10 games and how often they clear a line.</p>` + groups.map((g) => `
       ${g.name ? `<h3 class="conf-name">${esc(g.name)}</h3>` : ""}
-      <div class="roster-grid">${g.players.map((a) => `
-        <button type="button" class="player-tile" ${playerLink(tm.sport, tmPath(), a.id)}>
+      <div class="roster-list card">${g.players.map((a) => `
+        <button type="button" class="player-row" ${playerLink(tm.sport, tmPath(), a.id)}>
           <span class="pt-img">${a.headshot?.href ? `<img src="${esc(a.headshot.href)}" alt="" loading="lazy">` : esc((a.displayName || "?").split(" ").map((w) => w[0]).join("").slice(0, 2))}</span>
           <span class="pt-text"><span class="pt-name">${esc(a.displayName)}</span>
-          <span class="pt-meta mono">${esc([a.jersey ? "#" + a.jersey : "", a.position?.abbreviation].filter(Boolean).join(" · "))}</span></span>
-          ${a.injuries?.length ? `<span class="pill lost">${esc(a.injuries[0].status || "Injured")}</span>` : ""}
+            <span class="pt-meta">${esc(a.position?.displayName || a.position?.abbreviation || "")}</span></span>
+          <span class="pt-cols mono">
+            <span class="pt-col"><em>No.</em>${esc(a.jersey || "–")}</span>
+            <span class="pt-col"><em>Pos</em>${esc(a.position?.abbreviation || "–")}</span>
+            <span class="pt-col hide-sm"><em>Age</em>${esc(a.age ?? "–")}</span>
+            <span class="pt-col hide-sm"><em>Ht</em>${esc(a.displayHeight || "–")}</span>
+            <span class="pt-col hide-sm"><em>Wt</em>${esc(a.displayWeight || "–")}</span>
+          </span>
+          ${a.injuries?.length ? `<span class="pill lost">${esc(a.injuries[0].status || "Injured")}</span>` : `<span></span>`}
+          <span class="pt-go" aria-hidden="true">›</span>
         </button>`).join("")}</div>`).join("");
   }
   function teamPageHTML() {
