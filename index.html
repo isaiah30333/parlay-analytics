@@ -4,99 +4,60 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Parlay Analytics</title>
-  <meta name="description" content="Track every leg of your parlay in one place: live scores, player minutes, and box score stats.">
-  <link rel="stylesheet" href="styles.css">
+  <meta name="description" content="Build your parlay like you would on a sportsbook, then track every leg live: scores, clocks, minutes and box score stats across NFL, NBA, college, MLB, NHL, soccer, UFC, tennis, golf and racing.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="assets/css/base.css?v=2">
+  <link rel="stylesheet" href="assets/css/drawer.css?v=2">
+  <link rel="stylesheet" href="assets/css/pages.css?v=2">
+  <script src="assets/js/config.js?v=2"></script>
+  <script src="assets/js/site.js?v=2"></script>
 </head>
 <body>
-  <header class="top">
-    <div class="wrap top-row">
-      <h1 class="brand">Parlay<span>Analytics</span></h1>
-      <div class="top-actions">
-        <span id="updated" class="muted small"></span>
-        <button id="refreshBtn" class="btn ghost" title="Refresh now">Refresh</button>
-        <button id="shareBtn" class="btn ghost" title="Copy a link to this parlay">Share</button>
+  <header class="site-header" id="site-header"></header>
+
+  <main class="container page">
+    <div class="page-head reveal">
+      <p class="eyebrow">Parlay Analytics</p>
+      <h1 class="h-page">Every leg, one screen.</h1>
+      <p class="muted">Build your parlay the way you'd place it. Then follow the score, the clock and the box score for every leg without switching apps.</p>
+      <div class="head-row">
+        <div class="seg" role="tablist" aria-label="View">
+          <button type="button" role="tab" data-view-tab="build" aria-selected="true">Build</button>
+          <button type="button" role="tab" data-view-tab="track" aria-selected="false">Track <span id="legCount"></span></button>
+        </div>
+        <span class="live-pill" id="livePill"><span class="live-dot"></span><span id="liveText">No legs yet</span></span>
+        <div class="head-btns">
+          <button type="button" class="btn btn-ghost btn-sm" id="refreshBtn">Refresh</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="shareBtn" hidden>Share</button>
+        </div>
       </div>
     </div>
-  </header>
 
-  <main class="wrap">
-    <section id="summary" class="summary" hidden></section>
+    <div class="sheet sheet--page">
+      <section id="buildView" class="build" aria-label="Build your parlay">
+        <div id="board" class="board"></div>
+        <aside id="slip" class="slip card" aria-label="Your slip"></aside>
+      </section>
 
-    <section id="legs" class="legs"></section>
-
-    <section id="empty" class="empty">
-      <h2>Build your parlay</h2>
-      <p class="muted">Add each leg of your bet. You'll see the live score for every game and the full stat line for every player prop, all on one screen.</p>
-    </section>
-
-    <div class="add-row">
-      <button id="addBtn" class="btn primary">+ Add a leg</button>
-      <button id="clearBtn" class="btn ghost" hidden>Clear parlay</button>
+      <section id="trackView" aria-label="Track your parlay" hidden>
+        <div id="summary" class="summary card" hidden></div>
+        <div id="legs" class="legs"></div>
+        <div id="trackEmpty" class="track-empty">
+          <h2>Nothing to track yet</h2>
+          <p class="muted">Add legs in Build. Each one shows up here with its live score, clock and stats.</p>
+          <button type="button" class="btn" data-view="build">Build a parlay</button>
+        </div>
+      </section>
     </div>
   </main>
 
-  <!-- Add-leg dialog -->
-  <dialog id="addDialog">
-    <form method="dialog" id="addForm">
-      <div class="dlg-head">
-        <h2>Add a leg</h2>
-        <button type="button" class="x" id="closeDlg" aria-label="Close">×</button>
-      </div>
+  <button type="button" class="slip-bar" id="slipBar" hidden></button>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-      <div class="step">
-        <div class="step-label">1. Pick the game</div>
-        <div class="date-nav">
-          <button type="button" class="btn ghost sm" id="prevDay">‹</button>
-          <input type="date" id="dateInput">
-          <button type="button" class="btn ghost sm" id="nextDay">›</button>
-        </div>
-        <div id="gameList" class="game-list"></div>
-      </div>
+  <footer class="site-footer" id="site-footer"></footer>
 
-      <div class="step" id="typeStep" hidden>
-        <div class="step-label">2. Bet type</div>
-        <div class="tabs" id="typeTabs">
-          <button type="button" data-type="prop" class="tab active">Player prop</button>
-          <button type="button" data-type="ml" class="tab">Moneyline</button>
-          <button type="button" data-type="spread" class="tab">Spread</button>
-          <button type="button" data-type="total" class="tab">Game total</button>
-        </div>
-
-        <div class="fields">
-          <label data-for="prop">Player
-            <select id="playerSel"></select>
-          </label>
-          <label data-for="prop">Stat
-            <select id="statSel"></select>
-          </label>
-          <label data-for="ml spread">Team
-            <select id="teamSel"></select>
-          </label>
-          <label data-for="prop total">Over / Under
-            <select id="sideSel">
-              <option value="over">Over</option>
-              <option value="under">Under</option>
-            </select>
-          </label>
-          <label data-for="prop spread total">Line
-            <input type="number" id="lineInput" step="0.5" inputmode="decimal" placeholder="e.g. 4.5">
-          </label>
-        </div>
-        <p id="formHint" class="muted small"></p>
-        <p id="formErr" class="err small"></p>
-      </div>
-
-      <div class="dlg-foot">
-        <button type="button" class="btn ghost" id="cancelDlg">Cancel</button>
-        <button type="submit" class="btn primary" id="saveLeg" disabled>Add leg</button>
-      </div>
-    </form>
-  </dialog>
-
-  <footer class="wrap foot muted small">
-    NBA data from ESPN's public feed. Refreshes every 20 seconds while a game is live. For tracking only. Not affiliated with any sportsbook.
-  </footer>
-
-  <script src="app.js"></script>
+  <script src="assets/js/sports.js?v=2"></script>
+  <script src="assets/js/app.js?v=2"></script>
 </body>
 </html>

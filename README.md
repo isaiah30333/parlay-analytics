@@ -1,40 +1,54 @@
 # Parlay Analytics
 
-Track every leg of a parlay on one page. Add your bets and see each game's live score and clock, plus the full box score line for every player prop: minutes, points, rebounds, assists, threes, and whether the player is on the floor or on the bench.
+Build a parlay the way you would on a sportsbook, then track every leg on one screen: live score and clock, plus the player's box score, minutes, and whether they're on the floor. It doesn't place bets.
 
-## What it does
+Live site: https://isaiah30333.github.io/parlay-analytics/
 
-- **Bet types:** moneyline, spread, game total, and player props (points, rebounds, assists, threes, steals, blocks, turnovers, and combos like PRA).
-- **Live grading:** each leg shows Hit, Lost, Push, or how far it is from the line ("Needs 3 more", "Up 4", "Short by 3.5").
-- **Player detail:** minutes, full stat line, and an on-the-floor / on-the-bench tag while the game is live.
-- **Who's on the floor:** the current five for both teams on every game leg.
-- **Parlay summary:** legs hit, live, not started, and lost.
-- **Auto-refresh:** every 20 seconds while a game is live.
-- **Saved and shareable:** your parlay is saved in the browser, and **Share** copies a link with the whole slip.
+## Sports
 
-NBA only for now.
+| Sport | Bets |
+| --- | --- |
+| NFL, NCAAF | Moneyline, spread, total, team total, player props (anytime TD, passing/rushing/receiving yards, receptions, completions, tackles, sacks, kicking) |
+| NBA, NCAAB, WNBA, NCAAW | Moneyline, spread, total, team total, player props (points, rebounds, assists, threes, PRA and other combos, steals, blocks, turnovers) |
+| MLB | Moneyline, run line, total, team total, player props (hits, HR, RBIs, runs, H+R+RBI, walks, strikeouts, pitcher strikeouts, outs, hits allowed, earned runs) |
+| NHL | Moneyline, puck line, total, team total, player props (anytime goal, goals, assists, points, shots on goal, blocks, hits, saves) |
+| Soccer (Premier League, Champions League, Europa League, La Liga, Serie A, Bundesliga, Ligue 1, MLS, Liga MX) | 3-way moneyline with draw, handicap, total, team total, player props (anytime goal, shots, shots on target, assists, saves, cards) |
+| UFC | Fighter to win, total rounds, goes the distance |
+| Tennis (ATP, WTA) | Match winner, total games |
+| Golf (PGA Tour, LPGA, LIV) | To win, top 3/5/10/20 |
+| F1, NASCAR | To win, top 3/5/10/20 |
 
-## Run it locally
+Boxing isn't included because ESPN has no feed for it.
 
-No build step and no dependencies.
+## How it works
+
+- **Build:** pick a sport and date, then tap a line. Moneyline, spread, and total lines and odds are pre-filled from the DraftKings numbers ESPN publishes, when available. Adjust them to match your sportsbook. Player prop lines are typed in.
+- **Slip:** shows each leg's live status, the combined parlay odds, and the payout for your stake (once every leg has odds).
+- **Track:** one card per leg, with the score, clock, line score, and down and distance (football) or count and runners (baseball). Prop cards add the full stat line with the bet's stats highlighted, plus on-floor / on-ice status. Fights, tennis, golf, and races get their own cards.
+- Refreshes every 20 seconds while anything is live. The slip is saved in the browser, and **Share** copies a link to it.
+
+## Files
+
+- `index.html`: page
+- `assets/js/config.js`: name, colors, fonts, header photo (same template as isaiah30333.github.io)
+- `assets/js/site.js`, `assets/css/base.css`, `assets/css/drawer.css`: copied from the personal site template. Keep them in sync by copying, not editing.
+- `assets/js/sports.js`: each sport's ESPN path and its prop list. Add a sport or prop here.
+- `assets/js/app.js`: board, bet editor, slip, grading, live tracking
+- `assets/css/pages.css`: page styles
+
+## Run locally
 
 ```sh
 python3 -m http.server 8000
 # open http://localhost:8000
 ```
 
-## Host it on GitHub Pages
+## Data notes
 
-Settings → Pages → Source: "Deploy from a branch" → Branch: `main`, folder `/ (root)`.
-
-## Data
-
-Scores, box scores, and rosters come from ESPN's public site API (`site.api.espn.com`), called directly from the browser. It isn't an official, documented API, so it can change without notice. Fetches must not add custom headers or cache settings (see `getJSON` in `app.js`): those trigger a CORS preflight that ESPN rejects.
-
-## Files
-
-- `index.html`: page layout and the add-leg dialog
-- `styles.css`: styles
-- `app.js`: data fetching, leg grading, and rendering
+All data comes from ESPN's public site API (`site.api.espn.com`), called from the browser. It isn't an official API, so it can change without notice.
+- Don't add headers or a `cache` option to `fetch`. That triggers a CORS check, which ESPN rejects. `getJSON` adds a throwaway query parameter instead.
+- ESPN blocks headless Chrome's default user agent. When testing with headless Chrome, pass a normal `--user-agent`.
+- College scoreboards need `groups=80` (FBS) or `groups=50` (Division I) to list every game, not only featured ones.
+- Golf grading uses the tournament's status, because ESPN marks the competition final at the end of each round.
 
 For tracking only. Not affiliated with any sportsbook.
