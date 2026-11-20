@@ -10,7 +10,10 @@ window.SITE = {
   email: "",
   linkedin: "",
 
-  nav: [],
+  nav: [
+    { label: "Parlay",     href: "index.html" },
+    { label: "Dashboards", href: "dashboards.html" }
+  ],
   headerCta: null,
 
   theme: {

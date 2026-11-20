@@ -48,8 +48,6 @@
 .page-head .muted { max-width: 40em; }
 .head-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-top: 24px; }
 .head-btns { display: flex; gap: 8px; margin-left: auto; }
-/* no nav on this site: hide the empty mobile menu button */
-.menu-btn { display: none !important; }
 
 /* ---------- template: segmented control, live pill, toast ---------- */
 .seg { display: inline-flex; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-subtle); }

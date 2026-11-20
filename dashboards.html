@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboards · Parlay Analytics</title>
+  <meta name="description" content="Build your own sports betting dashboards: live scores, odds, standings, team results, player game logs, comparisons and your parlay, all on one customizable board.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="assets/css/base.css?v=9">
+  <link rel="stylesheet" href="assets/css/drawer.css?v=9">
+  <link rel="stylesheet" href="assets/css/pages.css?v=9">
+  <link rel="stylesheet" href="assets/css/dashboards.css?v=9">
+  <script src="assets/js/config.js?v=9"></script>
+  <script src="assets/js/site.js?v=9"></script>
+</head>
+<body>
+  <header class="site-header" id="site-header"></header>
+
+  <main class="container page">
+    <div class="page-head reveal">
+      <p class="eyebrow">Dashboards</p>
+      <h1 class="h-page">Your board, your data.</h1>
+      <p class="muted">Pick the data, pick the chart. Scores, odds, standings, team results, player game logs and your parlay, laid out the way you want.</p>
+      <div class="head-row">
+        <div class="seg seg-sm dash-tabs" id="dashTabs" role="tablist" aria-label="Dashboards"></div>
+        <button type="button" class="btn btn-ghost btn-sm" id="newDash" title="New dashboard">+ Dashboard</button>
+        <span class="live-pill" id="dashPill"><span class="live-dot"></span><span id="dashUpdated">Loading…</span></span>
+      </div>
+    </div>
+
+    <div class="sheet sheet--page">
+      <div class="dash-bar">
+        <div class="dash-bar-left">
+          <button type="button" class="btn btn-sm" id="addPanel">+ Add panel</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="editToggle" aria-pressed="false">Edit layout</button>
+        </div>
+        <div class="dash-bar-right">
+          <label class="dash-refresh"><span class="muted small">Auto-refresh</span>
+            <select class="input" id="refreshSel">
+              <option value="0">Off</option><option value="30">30 sec</option><option value="60">1 min</option><option value="300">5 min</option>
+            </select>
+          </label>
+          <button type="button" class="btn btn-ghost btn-sm" id="refreshNow">Refresh</button>
+          <details class="menu" id="dashMenu">
+            <summary class="btn btn-ghost btn-sm">More</summary>
+            <div class="menu-pop">
+              <button type="button" data-menu="rename">Rename dashboard</button>
+              <button type="button" data-menu="duplicate">Duplicate dashboard</button>
+              <button type="button" data-menu="share">Copy share link</button>
+              <button type="button" data-menu="export">Export as file</button>
+              <button type="button" data-menu="import">Import from file</button>
+              <hr>
+              <span class="menu-k">Start from a template</span>
+              <button type="button" data-menu="tpl" data-tpl="gameday">Game day</button>
+              <button type="button" data-menu="tpl" data-tpl="research">Player prop research</button>
+              <button type="button" data-menu="tpl" data-tpl="standings">Standings around the leagues</button>
+              <button type="button" data-menu="tpl" data-tpl="team">Team focus</button>
+              <hr>
+              <button type="button" data-menu="delete" class="danger">Delete dashboard</button>
+            </div>
+          </details>
+        </div>
+      </div>
+
+      <div class="dash-grid" id="dashGrid"></div>
+      <div class="dash-empty" id="dashEmpty" hidden>
+        <h2>This dashboard is empty</h2>
+        <p class="muted">Add a panel: pick a data source, then how to show it.</p>
+        <button type="button" class="btn" data-open-add>+ Add panel</button>
+      </div>
+    </div>
+  </main>
+
+  <dialog id="panelDlg" class="dlg" aria-labelledby="dlgTitle">
+    <form method="dialog" id="panelForm" class="dlg-form"></form>
+  </dialog>
+  <input type="file" id="importFile" accept="application/json,.json" hidden>
+  <div class="viz-tip" id="vizTip" role="tooltip" hidden></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <footer class="site-footer" id="site-footer"></footer>
+
+  <script src="assets/js/sports.js?v=9"></script>
+  <script src="assets/js/dashboards.js?v=9"></script>
+</body>
+</html>

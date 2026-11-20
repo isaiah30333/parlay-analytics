@@ -27,6 +27,7 @@ Boxing isn't included because ESPN has no feed for it.
 - **Track:** one card per leg, with the score, clock, line score, and down and distance (football) or count and runners (baseball). Prop cards add the full stat line with the bet's stats highlighted, plus on-floor / on-ice status. Fights, tennis, golf, and races get their own cards.
 - **Teams:** league-logo buttons lead to standings for every league, including all FBS and Division I college teams. Tap a team logo for its full season schedule (results, live game, upcoming games with a **Bet** button), last-10 form and roster. Team logos are clickable everywhere on the site.
 - **Players:** tap a player on a roster, or **Last 10 games** on a prop card, for their game log: hit rate against any line over the last 10 and last 5 games, averages, a bar chart of the last 10 games against the line, and the full stat table. In the bet editor, picking a player shows their last 10 results for the chosen stat right away.
+- **Dashboards** (`dashboards.html`): build your own boards from panels. Each panel is a data source (live scores, odds board, standings, team results, player game log, compare up to five players, team leaders, your parlay, or a note) shown as a table, bar chart, line chart, ranked bars, big numbers, cards or a list. Panels can be resized (S/M/L/Full), dragged to reorder, duplicated and edited. Several dashboards at once, auto-refresh (30 sec to 5 min), templates, export/import as a file, and a share link that adds the dashboard for whoever opens it. Saved in the browser.
 - Refreshes every 20 seconds while anything is live. The slip is saved in the browser, and **Share** copies a link to it.
 
 ## Files
@@ -37,6 +38,7 @@ Boxing isn't included because ESPN has no feed for it.
 - `assets/js/sports.js`: each sport's ESPN path and its prop list. Add a sport or prop here.
 - `assets/js/app.js`: board, bet editor, slip, grading, live tracking
 - `assets/css/pages.css`: page styles
+- `dashboards.html`, `assets/js/dashboards.js`, `assets/css/dashboards.css`: the Dashboards page. Chart colors are the validated reference palette (light and dark steps) defined at the top of `dashboards.css`.
 
 ## Run locally
 
