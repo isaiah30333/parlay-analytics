@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Parlay Analytics</title>
+  <meta name="description" content="Track every leg of your parlay in one place: live scores, player minutes, and box score stats.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap top-row">
+      <h1 class="brand">Parlay<span>Analytics</span></h1>
+      <div class="top-actions">
+        <span id="updated" class="muted small"></span>
+        <button id="refreshBtn" class="btn ghost" title="Refresh now">Refresh</button>
+        <button id="shareBtn" class="btn ghost" title="Copy a link to this parlay">Share</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section id="summary" class="summary" hidden></section>
+
+    <section id="legs" class="legs"></section>
+
+    <section id="empty" class="empty">
+      <h2>Build your parlay</h2>
+      <p class="muted">Add each leg of your bet. You'll see the live score for every game and the full stat line for every player prop, all on one screen.</p>
+    </section>
+
+    <div class="add-row">
+      <button id="addBtn" class="btn primary">+ Add a leg</button>
+      <button id="clearBtn" class="btn ghost" hidden>Clear parlay</button>
+    </div>
+  </main>
+
+  <!-- Add-leg dialog -->
+  <dialog id="addDialog">
+    <form method="dialog" id="addForm">
+      <div class="dlg-head">
+        <h2>Add a leg</h2>
+        <button type="button" class="x" id="closeDlg" aria-label="Close">×</button>
+      </div>
+
+      <div class="step">
+        <div class="step-label">1. Pick the game</div>
+        <div class="date-nav">
+          <button type="button" class="btn ghost sm" id="prevDay">‹</button>
+          <input type="date" id="dateInput">
+          <button type="button" class="btn ghost sm" id="nextDay">›</button>
+        </div>
+        <div id="gameList" class="game-list"></div>
+      </div>
+
+      <div class="step" id="typeStep" hidden>
+        <div class="step-label">2. Bet type</div>
+        <div class="tabs" id="typeTabs">
+          <button type="button" data-type="prop" class="tab active">Player prop</button>
+          <button type="button" data-type="ml" class="tab">Moneyline</button>
+          <button type="button" data-type="spread" class="tab">Spread</button>
+          <button type="button" data-type="total" class="tab">Game total</button>
+        </div>
+
+        <div class="fields">
+          <label data-for="prop">Player
+            <select id="playerSel"></select>
+          </label>
+          <label data-for="prop">Stat
+            <select id="statSel"></select>
+          </label>
+          <label data-for="ml spread">Team
+            <select id="teamSel"></select>
+          </label>
+          <label data-for="prop total">Over / Under
+            <select id="sideSel">
+              <option value="over">Over</option>
+              <option value="under">Under</option>
+            </select>
+          </label>
+          <label data-for="prop spread total">Line
+            <input type="number" id="lineInput" step="0.5" inputmode="decimal" placeholder="e.g. 4.5">
+          </label>
+        </div>
+        <p id="formHint" class="muted small"></p>
+        <p id="formErr" class="err small"></p>
+      </div>
+
+      <div class="dlg-foot">
+        <button type="button" class="btn ghost" id="cancelDlg">Cancel</button>
+        <button type="submit" class="btn primary" id="saveLeg" disabled>Add leg</button>
+      </div>
+    </form>
+  </dialog>
+
+  <footer class="wrap foot muted small">
+    NBA data from ESPN's public feed. Refreshes every 20 seconds while a game is live. For tracking only. Not affiliated with any sportsbook.
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
