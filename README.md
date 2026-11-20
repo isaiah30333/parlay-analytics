@@ -25,6 +25,8 @@ Boxing isn't included because ESPN has no feed for it.
 - **Build:** pick a sport and date, then tap a line. Moneyline, spread, and total lines and odds are pre-filled from the DraftKings numbers ESPN publishes, when available. Adjust them to match your sportsbook. Player prop lines are typed in.
 - **Slip:** shows each leg's live status, the combined parlay odds, and the payout for your stake (once every leg has odds).
 - **Track:** one card per leg, with the score, clock, line score, and down and distance (football) or count and runners (baseball). Prop cards add the full stat line with the bet's stats highlighted, plus on-floor / on-ice status. Fights, tennis, golf, and races get their own cards.
+- **Teams:** league-logo buttons lead to standings for every league, including all FBS and Division I college teams. Tap a team logo for its full season schedule (results, live game, upcoming games with a **Bet** button), last-10 form and roster. Team logos are clickable everywhere on the site.
+- **Players:** tap a player on a roster, or **Last 10 games** on a prop card, for their game log: hit rate against any line over the last 10 and last 5 games, averages, a bar chart of the last 10 games against the line, and the full stat table. In the bet editor, picking a player shows their last 10 results for the chosen stat right away.
 - Refreshes every 20 seconds while anything is live. The slip is saved in the browser, and **Share** copies a link to it.
 
 ## Files
@@ -50,5 +52,7 @@ All data comes from ESPN's public site API (`site.api.espn.com`), called from th
 - ESPN blocks headless Chrome's default user agent. When testing with headless Chrome, pass a normal `--user-agent`.
 - College scoreboards need `groups=80` (FBS) or `groups=50` (Division I) to list every game, not only featured ones.
 - Golf grading uses the tournament's status, because ESPN marks the competition final at the end of each round.
+- Team lists come from the standings feed (`/apis/v2/.../standings`), because `/teams` has no CORS header. Game logs and player bios come from `site.web.api.espn.com/apis/common/v3`.
+- Game logs reuse stat names across roles, so `CAT_NEEDS` in `app.js` limits pitching and defensive props to players whose log has that role's columns.
 
 For tracking only. Not affiliated with any sportsbook.

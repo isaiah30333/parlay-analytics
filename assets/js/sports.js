@@ -117,28 +117,35 @@
     },
   };
 
+  // Logos are ESPN's own league images (shown on a white tile, so the light versions work in both themes).
+  const CDN = "https://a.espncdn.com/";
+  const LG = (f) => CDN + "i/teamlogos/leagues/500/" + f + ".png";
+  const SL = (id) => CDN + "i/leaguelogos/soccer/500/" + id + ".png";
+  const ICON = (f) => CDN + "redesign/assets/img/icons/" + f + ".png";
+
   const SOCCER_LEAGUES = [
-    ["eng.1", "Premier League"], ["uefa.champions", "Champions League"], ["esp.1", "La Liga"],
-    ["ita.1", "Serie A"], ["ger.1", "Bundesliga"], ["fra.1", "Ligue 1"], ["usa.1", "MLS"],
-    ["mex.1", "Liga MX"], ["uefa.europa", "Europa League"],
+    ["eng.1", "Premier League", 23], ["uefa.champions", "Champions League", 2], ["esp.1", "La Liga", 15],
+    ["ita.1", "Serie A", 12], ["ger.1", "Bundesliga", 10], ["fra.1", "Ligue 1", 9], ["usa.1", "MLS", 19],
+    ["mex.1", "Liga MX", 22], ["uefa.europa", "Europa League", 2310],
   ];
 
   // kind: team (box scores) | fight | tennis | field (golf, racing)
+  // groups: college filter, used for the scoreboard (groups=) and standings (group=)
   window.SPORTS = [
-    { key: "nfl", label: "NFL", kind: "team", family: "football", path: "football/nfl", live: "situation" },
-    { key: "nba", label: "NBA", kind: "team", family: "basketball", path: "basketball/nba" },
-    { key: "ncaaf", label: "NCAAF", kind: "team", family: "football", path: "football/college-football", groups: "80", live: "situation" },
-    { key: "ncaab", label: "NCAAB", kind: "team", family: "basketball", path: "basketball/mens-college-basketball", groups: "50" },
-    { key: "mlb", label: "MLB", kind: "team", family: "baseball", path: "baseball/mlb", live: "situation" },
-    { key: "nhl", label: "NHL", kind: "team", family: "hockey", path: "hockey/nhl" },
-    { key: "soccer", label: "Soccer", kind: "team", family: "soccer", leagues: SOCCER_LEAGUES.map(([id, label]) => ({ label, path: "soccer/" + id })) },
-    { key: "ufc", label: "UFC", kind: "fight", path: "mma/ufc" },
-    { key: "tennis", label: "Tennis", kind: "tennis", leagues: [{ label: "ATP", path: "tennis/atp" }, { label: "WTA", path: "tennis/wta" }] },
-    { key: "golf", label: "Golf", kind: "field", unit: "golf", leagues: [{ label: "PGA Tour", path: "golf/pga" }, { label: "LPGA", path: "golf/lpga" }, { label: "LIV", path: "golf/liv" }] },
-    { key: "wnba", label: "WNBA", kind: "team", family: "basketball", path: "basketball/wnba" },
-    { key: "ncaaw", label: "NCAAW", kind: "team", family: "basketball", path: "basketball/womens-college-basketball", groups: "50" },
-    { key: "f1", label: "F1", kind: "field", unit: "race", path: "racing/f1" },
-    { key: "nascar", label: "NASCAR", kind: "field", unit: "race", path: "racing/nascar-premier" },
+    { key: "nfl", label: "NFL", logo: LG("nfl"), kind: "team", family: "football", path: "football/nfl", live: "situation" },
+    { key: "nba", label: "NBA", logo: LG("nba"), kind: "team", family: "basketball", path: "basketball/nba" },
+    { key: "ncaaf", label: "NCAAF", logo: ICON("NCAASports_Football"), kind: "team", family: "football", path: "football/college-football", groups: "80", live: "situation" },
+    { key: "ncaab", label: "NCAAB", logo: ICON("NCAASports_MensBasketball"), kind: "team", family: "basketball", path: "basketball/mens-college-basketball", groups: "50" },
+    { key: "mlb", label: "MLB", logo: LG("mlb"), kind: "team", family: "baseball", path: "baseball/mlb", live: "situation" },
+    { key: "nhl", label: "NHL", logo: LG("nhl"), kind: "team", family: "hockey", path: "hockey/nhl" },
+    { key: "soccer", label: "Soccer", logo: ICON("ESPN-icon-soccer"), kind: "team", family: "soccer", leagues: SOCCER_LEAGUES.map(([id, label, n]) => ({ label, path: "soccer/" + id, logo: SL(n) })) },
+    { key: "ufc", label: "UFC", logo: LG("ufc"), kind: "fight", path: "mma/ufc" },
+    { key: "tennis", label: "Tennis", logo: ICON("ESPN-icon-tennis"), kind: "tennis", leagues: [{ label: "ATP", path: "tennis/atp" }, { label: "WTA", path: "tennis/wta" }] },
+    { key: "golf", label: "Golf", logo: ICON("ESPN-icon-golf"), kind: "field", unit: "golf", leagues: [{ label: "PGA Tour", path: "golf/pga", logo: LG("pgatour") }, { label: "LPGA", path: "golf/lpga", logo: LG("lpga") }, { label: "LIV", path: "golf/liv", logo: LG("livgolf") }] },
+    { key: "wnba", label: "WNBA", logo: LG("wnba"), kind: "team", family: "basketball", path: "basketball/wnba" },
+    { key: "ncaaw", label: "NCAAW", logo: ICON("NCAASports_WomensBasketball"), kind: "team", family: "basketball", path: "basketball/womens-college-basketball", groups: "50" },
+    { key: "f1", label: "F1", logo: LG("f1"), kind: "field", unit: "race", path: "racing/f1" },
+    { key: "nascar", label: "NASCAR", logo: ICON("ESPN-icon-NASCAR"), kind: "field", unit: "race", path: "racing/nascar-premier" },
   ];
 
   window.FAMILIES = FAMILIES;
