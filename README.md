@@ -48,11 +48,12 @@ python3 -m http.server 8000
 ## Data notes
 
 All data comes from ESPN's public site API (`site.api.espn.com`), called from the browser. It isn't an official API, so it can change without notice.
-- Don't add headers or a `cache` option to `fetch`. That triggers a CORS check, which ESPN rejects. `getJSON` adds a throwaway query parameter instead.
+- Don't add headers or a `cache` option to `fetch`. That triggers a CORS check, which ESPN rejects. `getJSON` adds a throwaway `pa=` query parameter instead. Don't name it `_` with a numeric timestamp: ESPN answers some feeds (depth charts) from a cache without the CORS header for that pattern.
 - ESPN blocks headless Chrome's default user agent. When testing with headless Chrome, pass a normal `--user-agent`.
 - College scoreboards need `groups=80` (FBS) or `groups=50` (Division I) to list every game, not only featured ones.
 - Golf grading uses the tournament's status, because ESPN marks the competition final at the end of each round.
 - Team lists come from the standings feed (`/apis/v2/.../standings`), because `/teams` has no CORS header. Game logs and player bios come from `site.web.api.espn.com/apis/common/v3`.
+- Prop player picker: starters come from the game's box score when it has one, else from depth charts (`site.web.api.espn.com/.../depthcharts`, NFL, NBA, NHL, MLB), else players are sorted by season production. Stat buttons are chosen by position (`propsFor` in `app.js`).
 - Game logs reuse stat names across roles, so `CAT_NEEDS` in `app.js` limits pitching and defensive props to players whose log has that role's columns.
 
 For tracking only. Not affiliated with any sportsbook.

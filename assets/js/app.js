@@ -2,7 +2,8 @@
    PARLAY ANALYTICS — build a slip like a sportsbook, then track it live.
    Data: ESPN's public site API, called from the browser.
    Never add headers or a `cache` option to fetch: that triggers a CORS
-   preflight that ESPN rejects. A throwaway query param keeps data fresh.
+   preflight that ESPN rejects. A throwaway "pa=" query param keeps data fresh
+   (not "_=<timestamp>": ESPN serves some feeds from cache without CORS for that).
    ===================================================================== */
 (function () {
   "use strict";
@@ -59,7 +60,7 @@
   const totalUnit = (fam) => (!fam ? "" : fam === FAMILIES.baseball ? "runs" : fam === FAMILIES.hockey || fam === FAMILIES.soccer ? "goals" : "points");
 
   async function getJSON(url) {
-    const r = await fetch(url + (url.includes("?") ? "&" : "?") + "_=" + Date.now());
+    const r = await fetch(url + (url.includes("?") ? "&" : "?") + "pa=" + Date.now().toString(36));
     if (!r.ok) throw new Error("HTTP " + r.status);
     return r.json();
   }
@@ -758,26 +759,208 @@
     if (d.odds !== "" && d.odds != null) d.odds = fmtOdds(Number(d.odds));
   }
 
+  // ---- prop player picker: starters first, then bench, for each team ----
+  // Starters come from the game's box score once it has one (actual lineup), otherwise from ESPN's
+  // depth chart (NFL, NBA, NHL, MLB). With neither (college, soccer before lineups), players are
+  // sorted by season production. Linemen, punters and other non-prop positions are left out.
+  const DEPTH = "https://site.web.api.espn.com/apis/site/v2/sports/";
+  const NO_PROPS_FB = /^(OT|OG|G|C|T|OL|LT|LG|RG|RT|LS|H|P)$/;
+  const FB_ORDER = ["QB", "RB", "FB", "HB", "WR", "TE", "K", "PK"];
+  const isPitcher = (P) => /^(P|SP|RP|CL)$/.test(P);
+  const num0 = (v) => parseFloat(String(v ?? "").replace(/,/g, "")) || 0;
+
+  const pickProps = (fam, keys) => keys.map((k) => fam.props.find((p) => p.k === k)).filter(Boolean);
+  // the stat buttons offered for a player: by position, and for basketball by what they actually do
+  function propsFor(fam, pos, sv) {
+    const P = String(pos || "").toUpperCase();
+    if (fam === FAMILIES.football) {
+      if (P === "QB") return pickProps(fam, ["PYD", "PTD", "CMP", "ATT", "INT", "RYD", "PRY", "CAR", "ATD"]);
+      if (/^(RB|FB|HB)$/.test(P)) return pickProps(fam, ["RYD", "CAR", "RRY", "REC", "RCY", "ATD", "TD", "LRUSH"]);
+      if (/^(WR|TE)$/.test(P)) return pickProps(fam, ["REC", "RCY", "ATD", "LREC", "RRY", "TD"]);
+      if (/^(K|PK)$/.test(P)) return pickProps(fam, ["KPT", "FGM"]);
+      return pickProps(fam, ["TKL", "SCK"]);
+    }
+    if (fam === FAMILIES.basketball) {
+      const g = sv?.game || {};
+      const has = Object.keys(g).length > 0;
+      const n = (k) => num0(g[k]);
+      const threes = n("avgThreePointFieldGoalsMade"), blk = n("avgBlocks"), stl = n("avgSteals");
+      const keys = ["PTS"];
+      if (!has || threes >= 1.5) keys.push("3PM");             // shooters: threes right after points
+      keys.push("REB", "AST", "PRA", "PR", "PA", "RA");
+      if (has && threes >= 0.5 && threes < 1.5) keys.push("3PM");
+      if (!has || blk >= 0.6) keys.push("BLK");
+      if (!has || stl >= 0.8) keys.push("STL");
+      if (!has || blk + stl >= 1.2) keys.push("SB");
+      keys.push("TO");
+      return pickProps(fam, keys);
+    }
+    if (fam === FAMILIES.hockey) {
+      if (P === "G") return pickProps(fam, ["SV", "GA"]);
+      if (/^(D|LD|RD)$/.test(P)) return pickProps(fam, ["SOG", "PTS", "A", "BLK", "HIT", "AGS", "G"]);
+      return pickProps(fam, ["AGS", "SOG", "PTS", "G", "A", "HIT", "BLK"]);
+    }
+    if (fam === FAMILIES.baseball) {
+      if (isPitcher(P)) return pickProps(fam, ["K", "OUTS", "HA", "ER", "PBB"]);
+      return pickProps(fam, ["H", "HR", "AHR", "HRR", "RBI", "R", "BB", "BK"]);
+    }
+    if (fam === FAMILIES.soccer) {
+      if (/^(G|GK)$/.test(P)) return pickProps(fam, ["SV"]);
+      return pickProps(fam, ["AGS", "SOT", "SH", "A", "GA", "G", "CARD", "FC"]);
+    }
+    return fam.props;
+  }
+  // short season line under each name in the picker
+  function statLine(fam, pos, sv) {
+    if (!sv) return "";
+    const P = String(pos || "").toUpperCase();
+    const f = (cat, k) => sv[cat]?.[k];
+    const parts = (arr) => arr.filter(([v]) => v != null && v !== "").map(([v, l]) => `${v} ${l}`).join(" · ");
+    if (fam === FAMILIES.basketball) return parts([[f("game", "avgPoints"), "pts"], [f("game", "avgRebounds"), "reb"], [f("game", "avgAssists"), "ast"], [f("game", "avgThreePointFieldGoalsMade"), "3pm"]]);
+    if (fam === FAMILIES.football) {
+      if (P === "QB") return parts([[f("passing", "passingYards"), "pass yds"], [f("passing", "passingTouchdowns"), "TD"], [f("rushing", "rushingYards"), "rush yds"]]);
+      if (/^(RB|FB|HB)$/.test(P)) return parts([[f("rushing", "rushingYards"), "rush yds"], [f("rushing", "rushingTouchdowns"), "TD"], [f("receiving", "receptions"), "rec"]]);
+      if (/^(WR|TE)$/.test(P)) return parts([[f("receiving", "receptions"), "rec"], [f("receiving", "receivingYards"), "yds"], [f("receiving", "receivingTouchdowns"), "TD"]]);
+      if (/^(K|PK)$/.test(P)) return parts([[f("kicking", "fieldGoalsMade"), "FG"], [f("kicking", "totalKickingPoints"), "pts"]]);
+      return parts([[f("defensive", "totalTackles"), "tkl"], [f("defensive", "sacks"), "sacks"]]);
+    }
+    if (fam === FAMILIES.hockey) return P === "G" ? parts([[f("goalkeeping", "savePct"), "SV%"], [f("goalkeeping", "wins"), "W"]]) : parts([[f("team", "goals"), "G"], [f("team", "assists"), "A"], [f("team", "shotsTotal"), "SOG"]]);
+    if (fam === FAMILIES.baseball) return isPitcher(P) ? parts([[f("pitching", "ERA"), "ERA"], [f("pitching", "strikeouts"), "K"]]) : parts([[f("batting", "avg"), "AVG"], [f("batting", "homeRuns"), "HR"], [f("batting", "RBIs"), "RBI"]]);
+    return "";
+  }
+  function usageOf(fam, pos, sv) {
+    if (!sv) return 0;
+    const P = String(pos || "").toUpperCase();
+    const f = (cat, k) => num0(sv[cat]?.[k]);
+    if (fam === FAMILIES.basketball) return f("game", "avgMinutes");
+    if (fam === FAMILIES.football) return P === "QB" ? f("passing", "passingYards") : /^(RB|FB|HB)$/.test(P) ? f("rushing", "rushingYards") + f("receiving", "receivingYards")
+      : /^(WR|TE)$/.test(P) ? f("receiving", "receivingYards") : /^(K|PK)$/.test(P) ? f("kicking", "totalKickingPoints") : f("defensive", "totalTackles");
+    if (fam === FAMILIES.hockey) return P === "G" ? f("goalkeeping", "games") * 100 : f("team", "points") * 10 + f("team", "games");
+    if (fam === FAMILIES.baseball) return isPitcher(P) ? f("pitching", "innings") : f("batting", "plateAppearances") || f("batting", "gamesPlayed");
+    return 0;
+  }
+
   async function loadRosters(m) {
     if (board.rosters[m.mid]) return;
     board.rosters[m.mid] = { loading: true, teams: [] };
     const path = curPath();
+    const fam = FAMILIES[curSport().family];
+    const opt = (u) => getJSON(u).catch(() => null);
     try {
+      // actual starters, once the game has a box score (or soccer lineups are posted)
+      const summary = await opt(`${API}${path}/summary?event=${m.eventId}`);
+      const boxStarters = new Set();
+      (summary?.boxscore?.players || []).forEach((tp) => (tp.statistics || []).forEach((cat) => (cat.athletes || []).forEach((a) => { if (a.starter) boxStarters.add(String(a.athlete.id)); })));
+      (summary?.rosters || []).forEach((r) => (r.roster || []).forEach((e) => { if (e.starter && e.athlete) boxStarters.add(String(e.athlete.id)); }));
+
       const teams = await Promise.all(m.teams.map(async (t) => {
-        const r = await getJSON(`${API}${path}/teams/${t.id}/roster`);
-        const out = [];
-        const add = (a) => a && a.id && out.push({ id: String(a.id), name: a.displayName || a.fullName || "", pos: a.position?.abbreviation || "", headshot: a.headshot?.href || "" });
+        const [r, dc, st] = await Promise.all([
+          getJSON(`${API}${path}/teams/${t.id}/roster`),
+          opt(`${DEPTH}${path}/teams/${t.id}/depthcharts`),
+          opt(urls.teamStats(path, t.id)),
+        ]);
+        const stats = st ? teamStatsMap(st) : {};
+        const players = [];
+        const add = (a) => {
+          if (!a?.id) return;
+          const pos = a.position?.abbreviation || "";
+          if (fam === FAMILIES.football && NO_PROPS_FB.test(pos)) return;
+          const sv = stats[String(a.id)];
+          players.push({
+            id: String(a.id), name: a.displayName || a.fullName || "", pos, headshot: a.headshot?.href || "",
+            out: a.injuries?.[0]?.status || "", line: statLine(fam, pos, sv), use: usageOf(fam, pos, sv), sv,
+          });
+        };
         (r.athletes || []).forEach((g) => {
-          if (g.items) { if (!/practice|suspend/i.test(g.position || "")) g.items.forEach(add); } else add(g);
+          if (g.items) { if (!/practice|suspend|injuredReserve/i.test(g.position || "")) g.items.forEach(add); } else add(g);
         });
-        out.sort((a, b) => a.name.localeCompare(b.name));
-        return { team: t, players: out };
+        // depth chart: rank 0 = starter at that slot (special-teams return/holder slots don't count)
+        const depth = {};
+        let slotN = 0;
+        (dc?.depthchart || []).forEach((form) => {
+          if (/power play|penalty kill/i.test(form.name || "")) return;
+          Object.values(form.positions || {}).forEach((p) => {
+            const slot = (p.position?.abbreviation || "").toUpperCase();
+            const si = slotN++;
+            if (/^(H|LS|PR|KR)$/.test(slot)) return;
+            (p.athletes || []).forEach((a, i) => {
+              const id = String(a.id);
+              const rank = /^(RP|CL)$/.test(slot) ? i + 1 : i;   // relievers are never "starters"
+              if (!depth[id] || rank < depth[id].d) depth[id] = { d: rank, s: si };
+            });
+          });
+        });
+        const fromBox = players.some((p) => boxStarters.has(p.id));
+        const fromDepth = !fromBox && Object.keys(depth).length > 0;
+        let starters, bench;
+        if (fromBox) { starters = players.filter((p) => boxStarters.has(p.id)); bench = players.filter((p) => !boxStarters.has(p.id)); }
+        else if (fromDepth) { starters = players.filter((p) => depth[p.id]?.d === 0); bench = players.filter((p) => depth[p.id]?.d !== 0); }
+        else if (fam === FAMILIES.basketball && players.some((p) => p.use > 0)) {
+          const top = [...players].sort((a, b) => num0(b.sv?.game?.gamesStarted) - num0(a.sv?.game?.gamesStarted) || b.use - a.use).slice(0, 5).map((p) => p.id);
+          starters = players.filter((p) => top.includes(p.id)); bench = players.filter((p) => !top.includes(p.id));
+        } else { starters = []; bench = players; }
+        const fbRank = (p) => { const i = FB_ORDER.indexOf(p.pos); return i < 0 ? 99 : i; };
+        const sortStarters = (a, b) =>
+          fam === FAMILIES.football ? fbRank(a) - fbRank(b) || b.use - a.use
+          : fromDepth && fam === FAMILIES.basketball ? (depth[a.id]?.s ?? 99) - (depth[b.id]?.s ?? 99)
+          : b.use - a.use;
+        const sortBench = (a, b) => (!!a.out - !!b.out)
+          || (fam === FAMILIES.football ? fbRank(a) - fbRank(b) : 0)
+          || (depth[a.id]?.d ?? 99) - (depth[b.id]?.d ?? 99) || b.use - a.use || a.name.localeCompare(b.name);
+        starters.sort(sortStarters);
+        bench.sort(sortBench);
+        return { team: t, starters, bench, hasStarters: starters.length > 0, source: fromBox ? "lineup" : fromDepth ? "depth" : "stats" };
       }));
       board.rosters[m.mid] = { loading: false, teams };
     } catch (_) {
       board.rosters[m.mid] = { loading: false, teams: [], err: true };
     }
     if (board.draft?.mid === m.mid) renderBoardList();
+  }
+
+  const findPlayer = (ro, id) => {
+    for (const t of ro?.teams || []) { const p = [...t.starters, ...t.bench].find((x) => x.id === id); if (p) return { p, team: t.team }; }
+    return null;
+  };
+
+  function pickerHTML(m) {
+    const d = board.draft;
+    const ro = board.rosters[m.mid];
+    if (!ro || ro.loading) return `<div class="picker"><p class="muted small pad">Loading starters and bench…</p></div>`;
+    if (ro.err) return `<div class="picker"><p class="muted small pad">Couldn't load the rosters. Try again.</p></div>`;
+    const sel = d.player && !d.picking ? findPlayer(ro, d.player) : null;
+    const face = (p) => `<span class="pk-img">${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy">` : esc(p.name.split(" ").map((w) => w[0]).join("").slice(0, 2))}</span>`;
+    if (sel) {
+      return `<div class="picker picked">
+        ${face(sel.p)}<span class="pk-text"><span class="pk-name">${esc(sel.p.name)}</span>
+        <span class="pk-meta">${esc([sel.p.pos, sel.team.abbr || sel.team.name, sel.p.line].filter(Boolean).join(" · "))}</span></span>
+        <button type="button" class="btn btn-ghost btn-sm" data-act="change-player">Change player</button>
+      </div>`;
+    }
+    return `<div class="picker">
+      <input class="input pk-search" id="pickSearch" type="search" placeholder="Search players" value="${esc(board.pq || "")}" autocomplete="off">
+      <div class="pk-list" id="pickList">${pickListHTML(ro)}</div>
+    </div>`;
+  }
+  function pickListHTML(ro) {
+    const q = (board.pq || "").trim().toLowerCase();
+    const label = { lineup: "Starting lineup", depth: "Starters", stats: "Starters" };
+    const sections = [];
+    ro.teams.forEach((t) => {
+      if (t.hasStarters) sections.push([`${t.team.name}`, label[t.source], t.starters, t.team]);
+      sections.push([`${t.team.name}`, t.hasStarters ? "Bench" : "Players, most productive first", t.bench, t.team]);
+    });
+    const html = sections.map(([team, kind, list, tt]) => {
+      const rows = list.filter((p) => !q || p.name.toLowerCase().includes(q)).map((p) => `
+        <button type="button" class="pk-row" data-act="player" data-player="${p.id}">
+          <span class="pk-img">${p.headshot ? `<img src="${esc(p.headshot)}" alt="" loading="lazy">` : esc(p.name.split(" ").map((w) => w[0]).join("").slice(0, 2))}</span>
+          <span class="pk-text"><span class="pk-name">${esc(p.name)}</span><span class="pk-meta">${esc(p.line || "No stats yet")}</span></span>
+          <span class="pk-pos mono">${esc(p.pos)}</span>
+          ${p.out ? `<span class="pill lost">${esc(p.out)}</span>` : ""}
+        </button>`).join("");
+      return rows ? `<div class="pk-head">${tt.logo ? `<img src="${esc(tt.logo)}" alt="">` : ""}<span>${esc(team)}</span><span class="pk-kind">${esc(kind)}</span></div>${rows}` : "";
+    }).join("");
+    return html || `<p class="muted small pad">No players match "${esc(board.pq)}".</p>`;
   }
 
   function editorHTML(m) {
@@ -788,17 +971,19 @@
     const sel = (name, arr, val) => `<select class="input" data-d="${name}">${opts(arr, val)}</select>`;
     const inp = (name, val, ph, mode = "decimal") => `<input class="input" data-d="${name}" value="${esc(val)}" placeholder="${ph}" inputmode="${mode}" autocomplete="off">`;
     const pr = d.market === "prop" ? propOf(fam, d.stat) : null;
-    let f = field("Bet", sel("market", marketsFor(m), d.market));
+    const betField = field("Bet", sel("market", marketsFor(m), d.market));
+    let f = "";
 
     if (m.kind === "team" && ["ml", "spread", "teamTotal"].includes(d.market)) f += field("Team", sel("pick", m.teams.map((t) => [t.id, t.name]), d.pick));
+    let pre = "";
     if (d.market === "prop") {
-      const ro = board.rosters[m.mid];
-      const players = !ro || ro.loading ? `<select class="input" disabled><option>Loading players…</option></select>`
-        : ro.err ? `<select class="input" disabled><option>Couldn't load players</option></select>`
-        : `<select class="input" data-d="player"><option value="">Choose a player</option>${ro.teams.map((t) =>
-            `<optgroup label="${esc(t.team.name)}">${t.players.map((p) => `<option value="${p.id}" ${p.id === d.player ? "selected" : ""}>${esc(p.name)}${p.pos ? " · " + esc(p.pos) : ""}</option>`).join("")}</optgroup>`).join("")}</select>`;
-      f += field("Player", players, true);
-      f += field("Stat", sel("stat", fam.props.map((p) => [p.k, p.label]), d.stat));
+      pre = `<div class="ed-label">Player</div>` + pickerHTML(m);
+      const chosen = d.player && !d.picking ? findPlayer(board.rosters[m.mid], d.player) : null;
+      if (chosen) {
+        const opts = propsFor(fam, chosen.p.pos, chosen.p.sv);
+        pre += `<div class="ed-label">Stat</div><div class="stat-chips">${opts.map((p) =>
+          `<button type="button" class="chip-btn" data-act="stat" data-stat="${p.k}" aria-pressed="${p.k === d.stat}">${esc(p.label)}</button>`).join("")}</div>`;
+      }
     }
     if (m.kind === "fight" && d.market === "winner") f += field("Fighter", sel("pick", m.fighters.map((x) => [x.id, x.name]), d.pick));
     if (m.kind === "tennis" && d.market === "winner") f += field("Player", sel("pick", m.players.map((x) => [x.id, x.name]), d.pick));
@@ -814,15 +999,17 @@
     f += field("Odds <em>(optional)</em>", inp("odds", d.odds, "-110", "text"));
 
     const hints = {
-      prop: pr?.yes ? "Graded as 1 or more." : "Tip: \"5 or more\" is Over 4.5.",
+      prop: !d.player || d.picking ? "Starters are listed first, then the bench, for each team." : pr?.yes ? "Graded as 1 or more." : "Tip: \"5 or more\" is Over 4.5.",
       spread: "Minus for the favorite, plus for the underdog.",
       ml: fam?.draw ? "Soccer moneylines are settled on 90 minutes plus stoppage time." : "",
       top: "Ties at the cutoff can be paid at a reduced rate (dead heat) by your sportsbook.",
     };
     return `
       <div class="editor" data-editor>
-        <div class="editor-row">${f}</div>
-        ${d.market === "prop" && d.player ? recentHTML(curSport(), curPath(), d.player, d.stat, d.line) : ""}
+        ${d.market === "prop"
+          ? `<div class="editor-row">${betField}</div>${pre}${d.player && !d.picking ? `<div class="editor-row">${f}</div>` : ""}`
+          : `<div class="editor-row">${betField}${f}</div>`}
+        ${d.market === "prop" && d.player && !d.picking ? recentHTML(curSport(), curPath(), d.player, d.stat, d.line) : ""}
         <div class="editor-foot">
           <span class="muted small">${esc(hints[d.market] || "Lines are pre-filled when available. Change them to match your sportsbook.")}</span>
           <span class="editor-err" id="editorErr"></span>
@@ -865,10 +1052,9 @@
       }
       if (d.market === "prop") {
         if (!d.player) return fail("Choose a player.");
-        const ro = board.rosters[m.mid];
-        let pl = null, team = null;
-        ro?.teams.forEach((t) => { const p = t.players.find((x) => x.id === d.player); if (p) { pl = p; team = t.team; } });
-        if (!pl) return fail("Choose a player.");
+        const found = findPlayer(board.rosters[m.mid], d.player);
+        if (!found) return fail("Choose a player.");
+        const pl = found.p, team = found.team;
         Object.assign(leg, { playerId: pl.id, pick: pl.name, headshot: pl.headshot, teamId: team.id, stat: d.stat });
       }
     }
@@ -1694,6 +1880,18 @@
       if (ed) ed.scrollIntoView({ block: "nearest", behavior: "smooth" });
       return;
     }
+    if (act === "player" && board.draft) {
+      const d = board.draft;
+      const m = board.byId[d.mid];
+      const found = m && findPlayer(board.rosters[m.mid], t.dataset.player);
+      if (!found) return;
+      d.player = found.p.id; d.picking = false; board.pq = "";
+      const opts = propsFor(FAMILIES[curSport().family], found.p.pos, found.p.sv);
+      d.stat = opts[0]?.k || d.stat;   // their main stat: passing yards for a QB, points for a guard
+      return renderBoardList();
+    }
+    if (act === "change-player" && board.draft) { board.draft.picking = true; return renderBoardList(); }
+    if (act === "stat" && board.draft) { board.draft.stat = t.dataset.stat; return renderBoardList(); }
     if (act === "cancel") { board.draft = null; return renderBoardList(); }
     if (act === "add") return addFromDraft();
     if (t.id === "clearBtn") {
@@ -1748,6 +1946,13 @@
       if (t.dataset.d === "line" && strip && d.player) strip.outerHTML = recentHTML(curSport(), curPath(), d.player, d.stat, d.line);
     }
     if (t.dataset.tm === "line") { tm.line = t.value; renderPlayerStats(); }
+    if (t.id === "pickSearch") {
+      board.pq = t.value;
+      const m = board.draft && board.byId[board.draft.mid];
+      const list = $("#pickList");
+      if (m && list) list.innerHTML = pickListHTML(board.rosters[m.mid]);
+      return;
+    }
     if (t.id === "fieldSearch") {
       board.search = t.value;
       board.draft = null;
