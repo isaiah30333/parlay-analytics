@@ -503,3 +503,6 @@ input[type="date"].input { color-scheme: inherit; }
 .chip-btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: var(--accent-ink); font-weight: 600; }
 .editor > .editor-row + .editor-row { margin-top: 12px; }
 .editor .picker + .editor-row, .editor .stat-chips + .editor-row { margin-top: 14px; }
+.icon-btn:disabled { opacity: .35; cursor: not-allowed; }
+.empty-board { display: grid; justify-items: start; gap: 8px; }
+.empty-board p { margin: 0; }

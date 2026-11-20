@@ -574,8 +574,8 @@
     const tabs = logoNav(SPORTS, board.sport, "data-sport");
     const league = leagueNav(sport, board.league, "data-league");
     const date = usesDate(sport)
-      ? `<div class="date-nav"><button type="button" class="icon-btn" data-day="-1" aria-label="Previous day">‹</button>
-         <input type="date" id="boardDate" class="input" value="${board.date}">
+      ? `<div class="date-nav"><button type="button" class="icon-btn" data-day="-1" aria-label="Previous day" ${board.date <= ymdLocal() ? "disabled" : ""}>‹</button>
+         <input type="date" id="boardDate" class="input" value="${board.date}" min="${ymdLocal()}">
          <button type="button" class="icon-btn" data-day="1" aria-label="Next day">›</button></div>` : `<span class="muted small">Current event</span>`;
     const search = sport.kind === "field" ? `<input id="fieldSearch" class="input" type="search" placeholder="Find a ${sport.unit === "golf" ? "golfer" : "driver"}" value="${esc(board.search)}">` : "";
     $("#board").innerHTML = `
@@ -600,7 +600,9 @@
     else if (sport.kind === "fight") html = events.map(fightEvent).join("");
     else if (sport.kind === "tennis") html = events.map(tennisEvent).join("");
     else html = events.map(fieldEvent).join("");
-    el.innerHTML = html.trim() ? html : `<p class="muted pad">No ${esc(curLabel())} ${usesDate(sport) ? "games on this date" : "event right now"}.${usesDate(sport) ? " Try another day." : ""}</p>`;
+    el.innerHTML = html.trim() ? html : usesDate(sport)
+      ? `<div class="pad empty-board"><p class="muted">No ${esc(curLabel())} games left ${board.date === ymdLocal() ? "today" : "on this date"}.</p><button type="button" class="btn btn-ghost btn-sm" data-day="1">Next day →</button></div>`
+      : `<p class="muted pad">No upcoming ${esc(curLabel())} event right now.</p>`;
   }
 
   const mk = (attrs, top, sub, cls = "") => `<button type="button" class="mk ${cls}" data-act="pick" ${attrs}>${top}${sub ? `<small>${sub}</small>` : ""}</button>`;
@@ -610,6 +612,7 @@
     const c = e.competitions[0];
     const teams = awayHome(c.competitors.map(teamOf));
     const state = e.status.type.state;
+    if (state === "post") return "";   // finished games can't be bet
     const m = {
       mid: String(e.id), kind: "team", eventId: String(e.id), date: e.date, state, teams,
       odds: parseOdds(c.odds?.[0], teams, fam), label: `${teams[0].abbr} at ${teams[1].abbr}`,
@@ -647,7 +650,7 @@
 
   function fightEvent(e) {
     const comps = [...allComps(e)].reverse();   // ESPN lists prelims first; show the main event first
-    const fights = comps.map((c) => {
+    const fights = comps.filter((c) => stateOf(c, e) !== "post").map((c) => {
       const f = normFight(e, c);
       const m = { ...f, mid: f.id, eventId: String(e.id), compId: f.id, label: f.fighters.map((x) => x.name).join(" vs. ") };
       board.byId[m.mid] = m;
@@ -666,12 +669,13 @@
           ${board.draft?.mid === m.mid ? editorHTML(m) : ""}
         </div>`;
     }).join("");
+    if (!fights) return "";
     return `<div class="event-head"><h3>${esc(e.name)}</h3><span class="muted small">${esc(fmtWhen(e.date))}</span></div>${fights}`;
   }
 
   function tennisEvent(e) {
     const comps = allComps(e)
-      .filter((c) => ymdLocal(new Date(c.date)) === board.date || stateOf(c, e) === "in")
+      .filter((c) => stateOf(c, e) !== "post" && (ymdLocal(new Date(c.date)) === board.date || stateOf(c, e) === "in"))
       .sort((a, b) => (/doubles/i.test(a._group) - /doubles/i.test(b._group)) || new Date(a.date) - new Date(b.date));
     if (!comps.length) return "";
     const rows = comps.map((c) => {
@@ -698,6 +702,7 @@
     const c = pickFieldComp(e);
     if (!c) return "";
     const f = normField(e, c, sport.unit);
+    if (f.state === "post") return "";
     const m = { ...f, mid: f.id, eventId: String(e.id), compId: f.id, label: e.name };
     board.byId[m.mid] = m;
     const q = board.search.trim().toLowerCase();
@@ -1848,7 +1853,7 @@
     if (t.dataset.ttab) { tm.tab = t.dataset.ttab; return renderTeams(); }
     if (t.dataset.tmAll != null) { tm.all = !tm.all; return renderPlayerStats(); }
     if (t.dataset.betDate) {
-      board.sport = tm.sport; board.league = tm.league; board.date = t.dataset.betDate;
+      board.sport = tm.sport; board.league = tm.league; board.date = t.dataset.betDate < ymdLocal() ? ymdLocal() : t.dataset.betDate;
       store.set("pa-sport", board.sport);
       setView("build");
       return loadBoard();
@@ -1861,7 +1866,7 @@
     if (t.dataset.day) {
       const d = new Date(board.date + "T12:00:00");
       d.setDate(d.getDate() + Number(t.dataset.day));
-      board.date = ymdLocal(d);
+      board.date = ymdLocal(d) < ymdLocal() ? ymdLocal() : ymdLocal(d);   // never before today
       return loadBoard();
     }
     if (t.dataset.remove) {
@@ -1907,7 +1912,7 @@
   document.addEventListener("change", (e) => {
     const t = e.target;
     if (t.dataset.tm === "stat") { tm.stat = t.value; tm.line = ""; return renderTeams(); }
-    if (t.id === "boardDate" && t.value) { board.date = t.value; return loadBoard(); }
+    if (t.id === "boardDate" && t.value) { board.date = t.value < ymdLocal() ? ymdLocal() : t.value; return loadBoard(); }
     if (t.dataset.d && board.draft) {
       const k = t.dataset.d;
       board.draft[k] = t.value;
