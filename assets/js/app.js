@@ -1160,6 +1160,7 @@
     schedule: (path, id) => `${API}${path}/teams/${id}/schedule`,
     roster: (path, id) => `${API}${path}/teams/${id}/roster`,
     athlete: (path, id) => `${WEB}${path}/athletes/${id}`,
+    teamStats: (path, id) => `https://site.web.api.espn.com/apis/site/v2/sports/${path}/teams/${id}/athletes/statistics?seasontype=2`,
     gamelog: (path, id, season) => `${WEB}${path}/athletes/${id}/gamelog${season ? "?season=" + season : ""}`,
   };
 
@@ -1297,7 +1298,53 @@
     </div>`;
   }
   const GROUP_NAMES = { offense: "Offense", defense: "Defense", specialTeam: "Special teams", injuredReserveOrOut: "Injured reserve / out" };
-  function rosterHTML(ro) {
+
+  // Season stats shown on each roster row. ESPN's team stats feed groups players by category;
+  // each family lists the columns per category, and pickCat chooses the category for a player.
+  const ROSTER_COLS = {
+    basketball: { game: [["gamesPlayed", "GP"], ["avgMinutes", "MIN"], ["avgPoints", "PTS"], ["avgRebounds", "REB"], ["avgAssists", "AST"], ["avgThreePointFieldGoalsMade", "3PM"]] },
+    football: {
+      passing: [["gamesPlayed", "GP"], ["passingYards", "YDS"], ["passingTouchdowns", "TD"], ["interceptions", "INT"]],
+      rushing: [["gamesPlayed", "GP"], ["rushingAttempts", "CAR"], ["rushingYards", "YDS"], ["rushingTouchdowns", "TD"]],
+      receiving: [["gamesPlayed", "GP"], ["receptions", "REC"], ["receivingYards", "YDS"], ["receivingTouchdowns", "TD"]],
+      defensive: [["gamesPlayed", "GP"], ["totalTackles", "TCKL"], ["sacks", "SACK"], ["interceptions", "INT"]],
+      kicking: [["gamesPlayed", "GP"], ["fieldGoalsMade", "FGM"], ["fieldGoalAttempts", "FGA"], ["totalKickingPoints", "PTS"]],
+      punting: [["gamesPlayed", "GP"], ["punts", "PUNTS"], ["grossAvgPuntYards", "AVG"]],
+    },
+    hockey: {
+      team: [["games", "GP"], ["goals", "G"], ["assists", "A"], ["points", "PTS"], ["shotsTotal", "SOG"], ["plusMinus", "+/-"]],
+      goalkeeping: [["games", "GP"], ["wins", "W"], ["savePct", "SV%"], ["avgGoalsAgainst", "GAA"]],
+    },
+    baseball: {
+      batting: [["gamesPlayed", "G"], ["avg", "AVG"], ["hits", "H"], ["homeRuns", "HR"], ["RBIs", "RBI"]],
+      pitching: [["gamesPlayed", "G"], ["ERA", "ERA"], ["innings", "IP"], ["strikeouts", "K"], ["wins", "W"]],
+    },
+  };
+  const POS_CAT = { QB: "passing", RB: "rushing", FB: "rushing", WR: "receiving", TE: "receiving", PK: "kicking", K: "kicking", P: "punting", G: "goalkeeping", SP: "pitching", RP: "pitching", CP: "pitching" };
+  function teamStatsMap(d) {
+    const m = {};
+    (d?.results || []).forEach((c) => (c.leaders || []).forEach((l) => {
+      const id = String(l.athlete?.id || "");
+      if (!id) return;
+      const vals = {};
+      (l.statistics || []).forEach((g) => (g.stats || []).forEach((s) => { if (vals[s.name] == null) vals[s.name] = s.displayValue; }));
+      (m[id] ||= {})[c.name] = vals;
+    }));
+    return m;
+  }
+  function rosterStatCols(a, mine) {
+    const fam = ROSTER_COLS[tmSport().family];
+    if (!fam || !mine) return "";
+    const pos = a.position?.abbreviation || "";
+    let cat = POS_CAT[pos] && mine[POS_CAT[pos]] ? POS_CAT[pos] : null;
+    if (!cat && /^(P|SP|RP)$/.test(pos)) cat = mine.pitching ? "pitching" : null;
+    if (!cat && mine.defensive && !/^(QB|RB|FB|WR|TE|OT|OG|G|C|T)$/.test(pos)) cat = "defensive";
+    if (!cat) cat = Object.keys(fam).find((k) => mine[k]);
+    if (!cat) return "";
+    return fam[cat].map(([k, label]) => `<span class="pt-col"><em>${label}</em>${esc(mine[cat][k] ?? "–")}</span>`).join("");
+  }
+
+  function rosterHTML(ro, stats) {
     if (ro.err) return `<p class="muted pad">Couldn't load the roster.</p>`;
     if (!ro.data) return `<p class="muted pad">Loading roster…</p>`;
     const groups = [];
@@ -1316,9 +1363,7 @@
           <span class="pt-cols mono">
             <span class="pt-col"><em>No.</em>${esc(a.jersey || "–")}</span>
             <span class="pt-col"><em>Pos</em>${esc(a.position?.abbreviation || "–")}</span>
-            <span class="pt-col hide-sm"><em>Age</em>${esc(a.age ?? "–")}</span>
-            <span class="pt-col hide-sm"><em>Ht</em>${esc(a.displayHeight || "–")}</span>
-            <span class="pt-col hide-sm"><em>Wt</em>${esc(a.displayWeight || "–")}</span>
+            ${stats ? `<span class="pt-stats">${rosterStatCols(a, stats[String(a.id)]) || `<span class="pt-none muted">No stats yet</span>`}</span>` : ""}
           </span>
           ${a.injuries?.length ? `<span class="pill lost">${esc(a.injuries[0].status || "Injured")}</span>` : `<span></span>`}
           <span class="pt-go" aria-hidden="true">›</span>
@@ -1360,7 +1405,11 @@
         <button type="button" role="tab" data-ttab="roster" aria-selected="${tm.tab === "roster"}">Roster</button>
       </div>`;
     let body;
-    if (tm.tab === "roster") body = rosterHTML(ro);
+    if (tm.tab === "roster") {
+      const stc = load(urls.teamStats(path, tm.teamId));
+      if (!stc.data && !stc.err) stc.p.then(renderTeams, renderTeams);
+      body = rosterHTML(ro, stc.data ? teamStatsMap(stc.data) : null);
+    }
     else body = `
       ${live.length ? `<h3 class="conf-name">Live now</h3><div class="sched card">${live.map((g) => schedRowHTML(g, "is-now")).join("")}</div>` : ""}
       ${upcoming.length ? `<h3 class="conf-name">Next game</h3><div class="sched card">${schedRowHTML(upcoming[0], "is-next")}</div>` : ""}
